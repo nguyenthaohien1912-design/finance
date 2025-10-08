@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 from google import genai
 from google.genai.errors import APIError
@@ -213,15 +213,20 @@ with chat_tab:
         if st.session_state.chat_client is None or st.session_state.chat_client is False:
             try:
                 client = genai.Client(api_key=api_key)
+                
                 # System Instruction cho Chat
                 system_instruction = (
                     "Bạn là một Trợ lý Tài chính AI chuyên nghiệp. Nhiệm vụ của bạn là phân tích và trả lời các câu hỏi về dữ liệu tài chính "
                     "đã được cung cấp. Luôn sử dụng dữ liệu trong bối cảnh hiện tại để trả lời. Câu trả lời phải bằng Tiếng Việt và chuyên nghiệp."
                 )
+                
+                # *** ĐÃ SỬA LỖI: Sử dụng 'config' để truyền System Instruction cho các phiên bản thư viện cũ hơn ***
+                config = {"system_instruction": system_instruction}
+                
                 # Khởi tạo chat client và lưu vào session state
                 st.session_state.chat_client = client.chats.create(
                     model="gemini-2.5-flash",
-                    system_instruction=system_instruction
+                    config=config # Truyền System Instruction qua config
                 )
             except Exception as e:
                 st.error(f"Không thể khởi tạo Chat Client: {e}")

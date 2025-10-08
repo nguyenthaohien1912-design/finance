@@ -136,7 +136,7 @@ with analysis_tab:
                     if no_ngan_han_N != 0:
                         thanh_toan_hien_hanh_N = tsnh_n / no_ngan_han_N
                     if no_ngan_han_N_1 != 0:
-                        thanh_toan_hien_hanh_N_1 = tsnh_n_1 / no_ngan_han_N_1
+                        thanh_toan_hien_hanh_N_1 = tsnh_n_1 / no_ngan_hanh_N_1
                     
                     col1, col2 = st.columns(2)
                     with col1:
@@ -209,7 +209,8 @@ with chat_tab:
     if not api_key:
         st.error("Lỗi: Không tìm thấy Khóa API. Vui lòng cấu hình Khóa 'GEMINI_API_KEY' trong Streamlit Secrets.")
     else:
-        # --- Khởi tạo Chat Client ---
+        # --- Khởi tạo Chat Client: KIỂM TRA VÀ TẠO LẠI NẾU CẦN ---
+        # Kiểm tra: Nếu chat_client chưa được khởi tạo hoặc đã bị đánh dấu lỗi (False)
         if st.session_state.chat_client is None or st.session_state.chat_client is False:
             try:
                 client = genai.Client(api_key=api_key)
@@ -220,17 +221,19 @@ with chat_tab:
                     "đã được cung cấp. Luôn sử dụng dữ liệu trong bối cảnh hiện tại để trả lời. Câu trả lời phải bằng Tiếng Việt và chuyên nghiệp."
                 )
                 
-                # *** ĐÃ SỬA LỖI: Sử dụng 'config' để truyền System Instruction cho các phiên bản thư viện cũ hơn ***
+                # Sử dụng 'config' để truyền System Instruction
                 config = {"system_instruction": system_instruction}
                 
                 # Khởi tạo chat client và lưu vào session state
                 st.session_state.chat_client = client.chats.create(
                     model="gemini-2.5-flash",
-                    config=config # Truyền System Instruction qua config
+                    config=config 
                 )
+                st.info("Chat Client đã được khởi tạo thành công.")
             except Exception as e:
+                # Nếu có lỗi, đánh dấu chat_client là False để hiển thị cảnh báo
                 st.error(f"Không thể khởi tạo Chat Client: {e}")
-                st.session_state.chat_client = False # Đánh dấu lỗi
+                st.session_state.chat_client = False 
 
         if st.session_state.chat_client:
             # 1. Hiển thị lịch sử tin nhắn
@@ -264,18 +267,25 @@ with chat_tab:
                     with st.spinner("Đang nghĩ..."):
                         try:
                             # Gửi prompt (có thể kèm context) đến chat client
-                            response = st.session_state.chat_client.send_message(context_prompt)
-                            
-                            st.markdown(response.text)
-                            st.session_state.messages.append({"role": "assistant", "content": response.text})
+                            # Sửa lỗi: Đảm bảo chat_client còn hoạt động trước khi gửi
+                            if st.session_state.chat_client: 
+                                response = st.session_state.chat_client.send_message(context_prompt)
+                                st.markdown(response.text)
+                                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                            else:
+                                raise Exception("Chat client đã bị đóng.")
+
                         except APIError as e:
                             error_msg = f"Lỗi gọi Gemini Chat API: {e}. Vui lòng kiểm tra Khóa API hoặc thử lại."
                             st.error(error_msg)
                             st.session_state.messages.append({"role": "assistant", "content": error_msg})
                         except Exception as e:
-                            error_msg = f"Lỗi không xác định khi gọi AI: {e}"
+                            # Bắt lỗi "Cannot send a request, as the client has been closed."
+                            error_msg = f"Lỗi không xác định khi gọi AI: {e}. Có thể chat client đã bị đóng, vui lòng thử lại."
                             st.error(error_msg)
                             st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                            # Đặt lại chat_client để nó được khởi tạo lại ở lần chạy tiếp theo
+                            st.session_state.chat_client = None 
 
             # Thông báo nếu chưa có dữ liệu và chưa có tin nhắn
             if not st.session_state.analysis_data_context and not st.session_state.messages:
